@@ -38,7 +38,7 @@ AURA is a multi-task learning architecture that leverages **Task-Specific Multi-
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/your-repo/AURA.git
+    git clone https://github.com/GiuseppeSPk/AURA.git
     cd AURA
     ```
 2.  **Dataset Setup**:
