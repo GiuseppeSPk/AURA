@@ -10,8 +10,7 @@
 AURA is a multi-task learning architecture that leverages **Task-Specific Multi-Head Attention** to detect emotional signatures (Anger, Disgust) and linguistic framing (Reporting detection) as **domain-invariant markers** for toxicity. This project investigates whether affective understanding combined with perspectival awareness can improve model robustness across shifting linguistic contexts.
 
 **Current Version**: V10.2 (Gold Standard)  
-**Research Context**: Multimodal Deep Learning 
-**Exam**: "Technologies for Multimodal Data Rapresentation and Archive" Torino 2025/2026 
+**Research Context**: Multimodal Deep Learning (2025/2026)  
 **Methodology**: Multi-Task Learning + Imbalance Handling + Homoscedastic Uncertainty  
 **Status**: ✅ **V10.2 Gold Standard - Production Validated**
 
