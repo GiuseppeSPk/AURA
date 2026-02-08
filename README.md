@@ -10,7 +10,8 @@
 AURA is a multi-task learning architecture that leverages **Task-Specific Multi-Head Attention** to detect emotional signatures (Anger, Disgust) and linguistic framing (Reporting detection) as **domain-invariant markers** for toxicity. This project investigates whether affective understanding combined with perspectival awareness can improve model robustness across shifting linguistic contexts.
 
 **Current Version**: V10.2 (Gold Standard)  
-**Research Context**: Multimodal Deep Learning (2025/2026)  
+**Research Context**: Multimodal Deep Learning 
+**Exam**: "Technologies for Multimodal Data Rapresentation and Archive" Torino 2025/2026 
 **Methodology**: Multi-Task Learning + Imbalance Handling + Homoscedastic Uncertainty  
 **Status**: ✅ **V10.2 Gold Standard - Production Validated**
 
@@ -44,10 +45,11 @@ AURA is a multi-task learning architecture that leverages **Task-Specific Multi-
 2.  **Dataset Setup**:
     - Ensure `aura-v10-data` folder is present.
     - **Reporting Task Updated**: Now includes **1,000 unique samples** (Deduplicated, zero leakage).
-3.  **Run Training**:
+3.  **Explore Results**:
+    - **Visual Showcase** (Static Outputs): Check `notebooks/AURA_V10_SHOWCASE.ipynb` to see the model in action with existing execution outputs and metrics.
+4.  **Run Training**:
     - **Google Colab** (Recommended): Use `notebooks/AURA_V10_COLAB.ipynb` (Auto-configured).
     - **Kaggle**: Use `notebooks/AURA_V10_PROD.ipynb`.
-    - **Local**: Install dependencies and run `main.py` (Legacy).
 
 > [!TIP]
 > **Use the Colab Notebook!** It includes automated GPU checks, Google Drive mounting, and pip installation for a seamless experience.
