@@ -1,0 +1,45 @@
+# --- AURA PROJECT GITIGNORE ---
+
+# Personal & User-Specific Files (EXCLUDED)
+CV_Giuseppe_Spicchiarello.pdf
+cv_extracted.txt
+extract_cv.py
+EMAIL_DRAFT_PROFESSORS.txt
+project_guidelines.txt
+cv_extracted.txt
+*.pdf
+# (Exception: Keep relevant report PDFs if needed, but usually better to keep .md)
+
+# Python environment
+venv/
+env/
+.env
+*.pyc
+__pycache__/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Large Datasets (EXCLUDED - Users should download from Kaggle)
+data/*.csv
+data/*.zip
+aura-v10-data/
+*.zip
+*.tar.gz
+
+# Course Materials (EXCLUDED - Keep repo focused on AURA)
+Module_1/
+Module_2/
+Module_3/
+
+# Logs & Temporary outputs
+*.log
+analysis_output.txt
+analysis_report.txt
+dataset_analysis_output.txt
+freeze_analysis.txt
+
+# OS-specific files
+.DS_Store
+Thumbs.db

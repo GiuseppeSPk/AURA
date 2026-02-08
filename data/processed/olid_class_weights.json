@@ -1,0 +1,8 @@
+{
+  "weights": [0.75, 1.52],
+  "labels": ["non-toxic", "toxic"],
+  "distribution": {
+    "non-toxic": 0.671,
+    "toxic": 0.329
+  }
+}

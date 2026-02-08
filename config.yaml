@@ -1,0 +1,33 @@
+project_name: "AURA"
+random_seed: 42
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  max_length: 128
+  batch_size: 16  # Safe for T4 (16GB VRAM)
+  val_split: 0.1
+  test_split: 0.1
+  # 7 Ekman emotions including neutral
+  emotion_labels: ['anger', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'neutral']
+  num_emotion_classes: 7
+
+model:
+  encoder: "bert-base-uncased"
+  dropout: 0.1
+  hidden_size: 768
+  toxicity_classes: 2
+
+training:
+  epochs: 10
+  learning_rate_bert: 2.0e-5
+  learning_rate_heads: 1.0e-4
+  weight_decay: 0.01
+  patience: 3  # Early stopping patience
+  gradient_clip_val: 1.0
+  warmup_steps: 0.1  # 10% warmup
+  gradient_accumulation_steps: 2  # Effective batch = 16 * 2 = 32
+
+loss:
+  focal_gamma: 2.0
+  uncertainty_weighting: true

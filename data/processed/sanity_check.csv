@@ -1,0 +1,5 @@
+text,label,anger,disgust,fear,joy,sadness,surprise,neutral
+I hate you,1,0.8,0.1,0.0,0.0,0.0,0.0,0.1
+I love you,0,0.0,0.0,0.0,1.0,0.0,0.0,0.0
+This is disgusting,1,0.1,0.9,0.0,0.0,0.0,0.0,0.0
+So happy,0,0.0,0.0,0.0,0.9,0.0,0.0,0.1
