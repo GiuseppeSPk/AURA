@@ -6,9 +6,7 @@ cv_extracted.txt
 extract_cv.py
 EMAIL_DRAFT_PROFESSORS.txt
 project_guidelines.txt
-cv_extracted.txt
 *.pdf
-# (Exception: Keep relevant report PDFs if needed, but usually better to keep .md)
 
 # Python environment
 venv/
@@ -25,8 +23,22 @@ __pycache__/
 data/*.csv
 data/*.zip
 aura-v10-data/
+aura-v11-data/
 *.zip
 *.tar.gz
+
+# Model Checkpoints (EXCLUDED - Too large for GitHub)
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# Kaggle Outputs (EXCLUDED - Generated during training)
+__results___files*/
+__huggingface_repos__.json
+
+# CSV data files in version directories
+v-*/*.csv
 
 # Course Materials (EXCLUDED - Keep repo focused on AURA)
 Module_1/
