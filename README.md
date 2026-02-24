@@ -21,8 +21,8 @@ AURA is a multi-task learning architecture that leverages **Task-Specific Multi-
 - [Quick Start](#-quick-start)
 - [Research Problem](#-research-problem)
 - [Our Approach](#-our-approach-the-aura-hypothesis)
-- [Why V10.1?](#-why-v101-evolution-timeline)
-- [Architecture](#-architecture-v101)
+- [Evolution Timeline](#-evolution-timeline)
+- [Architecture](#️-architecture-v113)
 - [Technical Methodology](#-technical-methodology)
 - [Datasets](#-datasets)
 - [Installation & Usage](#-installation--usage)
@@ -42,16 +42,13 @@ AURA is a multi-task learning architecture that leverages **Task-Specific Multi-
     cd AURA
     ```
 2.  **Dataset Setup**:
-    - Ensure `aura-v10-data` folder is present.
-    - **Reporting Task Updated**: Now includes **1,000 unique samples** (Deduplicated, zero leakage).
-3.  **Explore Results**:
-    - **Visual Showcase** (Static Outputs): Check `notebooks/AURA_V10_SHOWCASE.ipynb` to see the model in action with existing execution outputs and metrics.
-4.  **Run Training**:
-    - **Google Colab** (Recommended): Use `notebooks/AURA_V10_COLAB.ipynb` (Auto-configured).
-    - **Kaggle**: Use `notebooks/AURA_V10_PROD.ipynb`.
+    - Add `aura-v11-data` as a dataset in your Kaggle notebook.
+    - Includes official GoEmotions dev, SST-2 dev, and OLID test splits.
+3.  **Run Training**:
+    - **Kaggle** (Recommended): Use `notebooks/AURA_V11.3_Kaggle.ipynb` with GPU accelerator.
 
 > [!TIP]
-> **Use the Colab Notebook!** It includes automated GPU checks, Google Drive mounting, and pip installation for a seamless experience.
+> **Use Kaggle!** Free GPU compute (T4/P100). Add `aura-v11-data` as a dataset, import the notebook, and run all cells.
 
 ---
 
@@ -131,41 +128,41 @@ AURA has undergone significant refinement across multiple versions:
 
 ---
 
-## 🏗️ Architecture (V10.1)
+## 🏗️ Architecture (V11.3)
 
 AURA uses **Task-Specific Multi-Head Attention (TS-MHA)** to create disentangled representations for each task:
 
 ```mermaid
 graph TD
-    Input[Input Text] --> Encoder[RoBERTa Encoder<br/>cardiffnlp/twitter-roberta-base-2022-154m]
-    Encoder --> Shared[Shared Hidden States<br/>768-dim, All Tokens]
+    Input[Input Text] --> Encoder["RoBERTa Encoder (roberta-base)"]
+    Encoder --> Shared["Shared Hidden States (768-dim, All Tokens)"]
     
-    Shared --> MHA1[Toxicity Attention<br/>W_Q, W_K, W_V]
-    Shared --> MHA2[Emotion Attention<br/>W_Q, W_K, W_V]
-    Shared --> MHA3[Sentiment Attention<br/>W_Q, W_K, W_V]
-    Shared --> MHA4[Reporting Attention<br/>W_Q, W_K, W_V]
+    Shared --> MHA1["Toxicity Attention (W_Q, W_K, W_V)"]
+    Shared --> MHA2["Emotion Attention (W_Q, W_K, W_V)"]
+    Shared --> MHA3["Sentiment Attention (W_Q, W_K, W_V)"]
+    Shared --> MHA4["Reporting Attention (W_Q, W_K, W_V)"]
     
     MHA1 --> Pool1[Masked Mean Pooling]
     MHA2 --> Pool2[Masked Mean Pooling]
     MHA3 --> Pool3[Masked Mean Pooling]
     MHA4 --> Pool4[Masked Mean Pooling]
     
-    Pool1 --> Head1[Toxicity Head<br/>Binary: Toxic/Non-Toxic]
-    Pool2 --> Head2[Emotion Head<br/>Multilabel: 7 Emotions]
-    Pool3 --> Head3[Sentiment Head<br/>Binary: Pos/Neg]
-    Pool4 --> Head4[Reporting Head<br/>Binary: Direct/Citational]
+    Pool1 --> Head1["Toxicity Head (Binary)"]
+    Pool2 --> Head2["Emotion Head (Multilabel: 7)"]
+    Pool3 --> Head3["Sentiment Head (Binary)"]
+    Pool4 --> Head4["Reporting Head (Binary)"]
     
     Head1 --> Loss1[Focal Loss + Class Weights]
     Head2 --> Loss2[Binary Cross Entropy]
     Head3 --> Loss3[Cross Entropy]
     Head4 --> Loss4[Cross Entropy]
     
-    Loss1 --> Kendall[Kendall Uncertainty Loss<br/>Adaptive Task Weighting]
-    Loss2 --> Kendall
-    Loss3 --> Kendall
-    Loss4 --> Kendall
+    Loss1 --> GradNorm["GradNorm (Chen et al., 2018) — Dynamic Gradient Balancing"]
+    Loss2 --> GradNorm
+    Loss3 --> GradNorm
+    Loss4 --> GradNorm
     
-    style Kendall fill:#ff6b6b
+    style GradNorm fill:#ff6b6b
     style Encoder fill:#4ecdc4
     style MHA1 fill:#ffe66d
     style MHA2 fill:#ffe66d
@@ -175,10 +172,10 @@ graph TD
 
 ### Key Architectural Features
 
-1. **Backbone**: `cardiffnlp/twitter-roberta-base-2022-154m`
-   - Pre-trained on 154M tweets (2018-2022)
-   - Optimized for informal, social media language
-   - 125M parameters
+1. **Backbone**: `roberta-base`
+   - Pre-trained on 160GB of diverse English text (BookCorpus, Wikipedia, CC-News, OpenWebText, Stories)
+   - Strong general-purpose language understanding
+   - ~125M parameters
 
 2. **Task-Specific Attention** (Module 2):
    - Each task has independent $W_Q, W_K, W_V$ projection matrices
@@ -188,11 +185,9 @@ graph TD
 
 3. **Masked Mean Pooling**:
    ```python
-   def _mean_pool(hidden, attention_mask):
-       masked = hidden * attention_mask.unsqueeze(-1)
-       sum_hidden = masked.sum(dim=1)
-       counts = attention_mask.sum(dim=1).clamp(min=1e-9)
-       return sum_hidden / counts.unsqueeze(-1)
+   def _mean_pool(self, seq, mask):
+       mask_exp = mask.unsqueeze(-1).expand(seq.size()).float()
+       return (seq * mask_exp).sum(dim=1) / mask_exp.sum(dim=1).clamp(min=1e-9)
    ```
    - Prevents padding tokens from contributing to the representation
    - `clamp(min=1e-9)` avoids division by zero for edge cases
@@ -213,9 +208,9 @@ We train 4 complementary tasks simultaneously:
 | Task | Output Type | Purpose | Dataset Size |
 |------|-------------|---------|--------------|
 | **Toxicity** | Binary (Toxic/Non-Toxic) | Primary detection target | ~12,000 |
-| **Emotion** | Multilabel (7 emotions) | Affective signature detection | ~57,000 |
+| **Emotion** | Multilabel (7 emotions) | Affective signature detection | ~43,000 |
 | **Sentiment** | Binary (Pos/Neg) | General polarity awareness | ~72,000 |
-| **Reporting** | Binary (Direct/Citational) | Perspectival framing detection | **500** |
+| **Reporting** | Binary (Direct/Citational) | Perspectival framing detection | **~1,000** |
 
 **Why Multi-Task?** By forcing the model to jointly learn emotions and reporting, we hypothesize it will learn more _generalizable_ features than a single-task model that might overfit to toxic keywords.
 
@@ -277,36 +272,38 @@ Where:
 
 ### 4. Two-Phase Training Strategy
 
-| Phase | Encoder Status | Epochs | Learning Rate | Purpose |
-|-------|----------------|--------|---------------|---------|
-| **Phase 1** | ❄️ **Frozen** | 1 | 2e-4 | Warm-up task heads and attention layers |
-| **Phase 2** | 🔥 **Unfrozen** | 4-9 | 5e-6 | Fine-tune encoder for task-specific features |
+| Phase | Encoder Status | Epochs | Learning Rate (Encoder / Heads) | Purpose |
+|-------|----------------|--------|--------------------------------|---------|
+| **Phase 1** | ❄️ **Frozen** | 1 | 0 / 5e-5 | Warm-up task heads and attention layers |
+| **Phase 2** | 🔥 **Unfrozen** | 2-10 | 1e-5 / 5e-5 | Fine-tune encoder for task-specific features |
 
 **Why freeze first?** Pre-trained encoders contain generic linguistic knowledge. We first train the task-specific layers to adapt to this representation, then unfreeze to specialize the encoder.
 
-**Expected Behavior**:
-- **Epoch 1**: F1 ~0.40-0.45 (heads learning basic patterns)
-- **Epoch 2**: F1 jumps to ~0.50-0.55 (encoder starts specializing)
-- **Epoch 3-5**: F1 climbs to ~0.65-0.70 (refinement)
-- **Epoch 6-10**: Plateau (convergence)
+**V11 FIX**: On unfreeze, AdamW optimizer states (momentum/variance) are **reset** for encoder parameters to prevent stale gradient momentum from the frozen phase.
+
+**Expected Behavior (V11.3)**:
+- **Epoch 1** ❄️: Tox F1 ~0.62 (heads learning basic patterns, encoder frozen)
+- **Epoch 2** 🔥: Tox F1 jumps to ~0.75 (encoder unfreezes, rapid improvement)
+- **Epoch 3**: Tox F1 peaks at **0.7830** (best model saved)
+- **Epoch 4-8**: Overshoot — Tox F1 dips slightly while auxiliary tasks continue improving
 
 ---
 
 ## 📊 Datasets
 
-We aggregated **4 diverse datasets** into a unified `aura-v10-data` corpus:
+We aggregated **4 diverse datasets** into a unified `aura-v11-data` corpus:
 
 | Task | Source Dataset | Train Samples | Validation | Class Distribution |
 |------|----------------|---------------|------------|-------------------|
-| **Toxicity** | OLID + AbusEval | 12,264 | 1,363 | 5.3% Toxic / 94.7% Non-Toxic |
-| **Emotion** | GoEmotions | 57,382 | 6,376 | Multilabel (7 emotions) |
-| **Sentiment** | SST-2 | 72,415 | 8,046 | 50% Positive / 50% Negative |
-| **Reporting** | **Deduplicated Custom** | **925** | **103** | **55% Pos / 45% Neg** |
+| **Toxicity** | OLID (Zampieri et al., 2019) | ~12,000 | 1,324 (official test) | 5.3% Toxic / 94.7% Non-Toxic |
+| **Emotion** | GoEmotions (Demszky et al., 2020) | ~43,000 | 5,426 (official dev) | Multilabel (7 emotions) |
+| **Sentiment** | SST-2 (Socher et al., 2013) | ~67,000 | 872 (official dev) | ~50% Positive / 50% Negative |
+| **Reporting** | **Deduplicated Custom** | **925** | **103** | **~50/50 balanced** |
 
 ### The Reporting Dataset: Key Innovation
 
 > [!IMPORTANT]
-> The **Reporting dataset** is the novel contribution of this project. We manually curated 500 examples to teach the model perspectival awareness.
+> The **Reporting dataset** is the novel contribution of this project. We manually curated **1,000 unique examples** (deduplicated, zero leakage) to teach the model perspectival awareness.
 
 #### Example Pairs
 
@@ -332,16 +329,16 @@ The Reporting head learns to detect:
 5. **Attribution Phrases**: "according to", "as stated by", "in their words"
 
 > [!NOTE]
-> **Why 500 samples is enough**: Reporting is a high-signal task. Unlike emotions (which require 57k samples to capture nuance), reporting relies on a small set of explicit linguistic markers. BERT-based models excel at learning such pattern-based tasks with limited data.
+> **Why ~1,000 samples is enough**: Reporting is a high-signal task. Unlike emotions (which require 43k samples to capture nuance), reporting relies on a small set of explicit linguistic markers. BERT-based models excel at learning such pattern-based tasks with limited data.
 
 #### Dataset Balance Strategy
 
 | Split | Direct | Citational | Total | Balance |
 |-------|--------|------------|-------|---------|
-| **Train** | 250 | 250 | 500 | Perfect 50/50 |
-| **Validation** | 28 | 27 | 55 | ~50/50 |
+| **Train** | ~463 | ~462 | 925 | ~50/50 |
+| **Validation** | ~52 | ~51 | 103 | ~50/50 |
 
-**Why perfect balance?** We want the model to learn the linguistic structure, not dataset biases. Balanced data ensures equal optimization for both classes.
+**Why near-perfect balance?** We want the model to learn the linguistic structure, not dataset biases. Balanced data ensures equal optimization for both classes.
 
 ### Evaluation: Domain Robustness Testing
 
@@ -358,19 +355,17 @@ We use **held-out datasets** exclusively for evaluation to test generalization:
 
 ### Option A: Kaggle (Recommended)
 
-1. **Upload Dataset**:
-   - Go to [Kaggle Datasets](https://www.kaggle.com/datasets)
-   - Click "New Dataset" → Upload Folder
-   - Select `kaggle_upload/aura-v10-data`
-   - Name it: `aura-v10-data`
-   - Set visibility: Private
+1. **Add Dataset**:
+   - In your Kaggle notebook, go to Settings → Add Data
+   - Search for `aura-v11-data` and add it
+   - The data will be available at `/kaggle/input/aura-v11-data/`
 
 2. **Import Notebook**:
    - Go to [Kaggle Notebooks](https://www.kaggle.com/code)
    - Click "New Notebook" → Import Notebook
-   - Upload `notebooks/AURA_V10_PROD.ipynb`
-   - Settings → Add Data → Select `aura-v10-data`
-   - Settings → Accelerator → **GPU T4 x2**
+   - Upload `notebooks/AURA_V11.3_Kaggle.ipynb`
+   - Settings → Add Data → Select `aura-v11-data`
+   - Settings → Accelerator → **GPU T4 x2** (or P100)
 
 3. **Run**:
    - Execute all cells
@@ -389,11 +384,11 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 pip install transformers==4.35.0 pandas scikit-learn matplotlib seaborn tqdm
 
 # Prepare data directory
-mkdir -p data/aura-v10-data
-cp kaggle_upload/aura-v10-data/*.csv data/aura-v10-data/
+mkdir -p data/aura-v11-data
+# Download aura-v11-data from Kaggle and place CSVs here
 
 # Run notebook
-jupyter notebook notebooks/AURA_V10_PROD.ipynb
+jupyter notebook notebooks/AURA_V11.3_Kaggle.ipynb
 ```
 
 **System Requirements**:
@@ -465,9 +460,11 @@ jupyter notebook notebooks/AURA_V10_PROD.ipynb
 | "I hate rainy Mondays" | Non-Toxic | Non-Toxic | ✅ |
 | "This soup is disgusting" | Non-Toxic | Toxic | ❌ |
 | "I am so angry at the traffic" | Non-Toxic | Non-Toxic | ✅ |
+| "This movie was terrible" | Non-Toxic | Non-Toxic | ✅ |
 | "You are an idiot" | Toxic | Toxic | ✅ |
 | "I hate you so much" | Toxic | Toxic | ✅ |
 | "Go kill yourself" | Toxic | Toxic | ✅ |
+| "You are worthless garbage" | Toxic | Toxic | ✅ |
 | "He said you are an idiot" | Non-Toxic | Toxic | ❌ |
 | "The article discusses hate speech" | Non-Toxic | Non-Toxic | ✅ |
 | "Someone wrote 'go die' in the comments" | Non-Toxic | Non-Toxic | ✅ |
@@ -491,66 +488,42 @@ A standard classifier would flag _"He said you're stupid"_ as toxic. AURA unders
 
 ---
 
-**Q2: Why only 500 examples for the Reporting dataset?**
+**Q2: Why only ~1,000 examples for the Reporting dataset?**
 
 A: Reporting is a **high-signal task**. It relies on explicit linguistic markers:
 - Reporting verbs: "said", "claimed", "wrote"
 - Quotation marks: `"..."`, `'...'`
 - Third-person subjects: "He", "She"
 
-BERT-based models excel at learning such pattern-based tasks with limited data. In contrast, emotion detection requires 57k samples because emotions are nuanced and context-dependent.
+BERT-based models excel at learning such pattern-based tasks with limited data. In contrast, emotion detection requires 43k samples because emotions are nuanced and context-dependent.
 
-**Empirical Evidence**: With 500 samples, the Reporting head achieves ~0.85-0.90 F1 on validation. Increasing to 1000 samples showed no significant improvement in our ablation studies.
+**Empirical Evidence**: With ~1,000 samples, the Reporting head achieves ~0.85-0.90 F1 on validation — sufficient for a high-signal pattern-based task.
 
 ---
 
 **Q3: What does "negative loss" mean? Is that a bug?**
 
-A: **No, it's expected** in Kendall Multi-Task Learning. The total loss is:
+A: **No, it's expected.** In earlier versions (V10.2), negative loss arose from Kendall Uncertainty Weighting where the $\frac{1}{2}\log(\sigma_i^2)$ regularization term becomes negative as the model grows confident.
 
-$$
-\mathcal{L} = \sum \left[ \frac{L_i}{\sigma_i^2} + \frac{1}{2}\log(\sigma_i^2) \right]
-$$
-
-When the model becomes very confident ($\sigma^2$ decreases), the second term $\frac{1}{2}\log(\sigma_i^2)$ becomes **negative** (since $\log(x) < 0$ for $x < 1$).
-
-**Example**: If $\sigma^2 = 0.5$, then $\frac{1}{2}\log(0.5) \approx -0.35$
-
-This is mathematically sound and proves the model is maximizing confidence in its multi-task predictions.
+In V11.3 (GradNorm), training loss stays positive. However, if you run V10.2 or earlier notebooks, negative losses are normal and mathematically sound — they prove the model is maximizing prediction confidence.
 
 ---
 
-**Q4: Why is V10.1's F1 (0.67) lower than V8's (0.78)?**
+**Q4: How did AURA's performance evolve from V8 to V11.3?**
 
-A: **V10.1 prioritizes honest generalization**:
+A: The path from V8→V11.3 reflects a shift from overfitting to generalization:
 
-| Model | Val F1 | Overfitting Gap | Stability |
-|-------|--------|------------------|-----------|
-| V8 | 0.78 | **18%** | Crashes at epoch 3 (NaN) |
-| V10.1 | 0.67 | **2%** | Stable for 10+ epochs |
+| Version | Val F1 | Gradient Balance | Key Issue |
+|---------|--------|------------------|-----------|
+| V8 | 0.78 | None (manual) | 18% overfitting gap, NaN crashes |
+| V10.2 | 0.7572 | Kendall | Stable but static weights |
+| V11.3 | **0.7830** | **GradNorm** | Dynamic rebalancing, best result |
 
-V8 achieved 0.78 by **memorizing** training shortcuts. V10.1 uses SoftPlus + dummy loss fixes to force the model to learn real linguistic patterns.
-
-**Defense Strategy**: "We chose scientific rigor over leaderboard metrics. V10.1's 2% gap proves it's not overfitting."
+V8's F1 came from memorization. V10.2 introduced proper multi-task balancing. V11.3 surpassed V8 with GradNorm — proving that scientific rigor and good metrics are not mutually exclusive.
 
 ---
 
 ### Technical Questions
-
-**Q5: What is SoftPlus and why use it instead of Exponential?**
-
-A: **Exponential parameterization** ($\sigma^2 = e^\theta$) causes gradient overflow:
-- When encoder unfreezes, gradients spike
-- $e^\theta$ explodes for large $\theta$ (e.g., $e^{10} \approx 22,000$)
-- Gradients become NaN → training crashes
-
-**SoftPlus** ($\sigma^2 = \log(1 + e^\theta)$) has **bounded derivatives**:
-
-$$
-\frac{d}{d\theta} \text{SoftPlus}(\theta) = \frac{e^\theta}{1 + e^\theta} \in (0, 1)
-$$
-
-This prevents gradient overflow while maintaining $\sigma^2 > 0$.
 
 ---
 
@@ -632,7 +605,7 @@ AURA/
 | `AURA_V11_Baseline.ipynb` | Single-task RoBERTa ablation (no MHSA, no MTL) | Ablation comparison |
 | `prepare_v11_datasets.py` | Generates V11 emotion/sentiment splits from GoEmotions + SST-2 | Data preparation |
 | `aura_v11.3_history.json` | Full training metrics + GradNorm weight evolution | Analysis & visualization |
-| `aura-v11-data/` | V11 unified dataset directory | Upload to Kaggle as dataset |
+| `aura-v11-data/` | V11 unified dataset directory | Add as Kaggle dataset |
 
 ---
 
@@ -642,8 +615,8 @@ This project integrates concepts from **three course modules** and **independent
 
 ### Module 1: Advanced Loss Functions
 - **Focal Loss** (Lin et al., 2017): Addresses extreme class imbalance (5.3% toxic)
-- **Kendall Uncertainty Weighting** (Kendall et al., 2018): Parameter-free multi-task balancing
-- **SoftPlus Stability**: Custom contribution to prevent gradient overflow during unfreezing
+- **GradNorm** (Chen et al., 2018): Dynamic gradient-based task weight balancing (V11.3)
+- **Kendall Uncertainty Weighting** (Kendall et al., 2018): Homoscedastic task balancing (V10.2, replaced by GradNorm)
 
 ### Module 2: Attention Mechanisms
 - **Task-Specific Multi-Head Attention**: Disentangled representations per task
@@ -697,10 +670,10 @@ This project integrates concepts from **three course modules** and **independent
    → Backbone encoder: `roberta-base`
 
 ### Theoretical Foundations
-4. **Basile, V. (2020)**. *"It's the end of the gold standard as we know it: On the role of human subjectivity in NLP."* Philosophical Transactions of the Royal Society A.  
+5. **Basile, V. (2020)**. *"It's the end of the gold standard as we know it: On the role of human subjectivity in NLP."* Philosophical Transactions of the Royal Society A.  
    → Perspectivism: Toxicity annotations reflect annotator perspectives, not objective truth
 
-5. **Sprugnoli, S. (2021)**. *"Linguistic representation of events."* Course materials, Multimodal Deep Learning.  
+6. **Sprugnoli, S. (2021)**. *"Linguistic representation of events."* Course materials, Multimodal Deep Learning.  
    → Reporting as an event: Detection of POS eventive shades (verbs, temporal markers)
 
 ### Datasets
@@ -724,7 +697,7 @@ This project is licensed under the **MIT License**. You are free to use, modify,
 ## 🙏 Acknowledgments
 
 - **HuggingFace** for the Transformers library and model hosting
-- **Cardiff NLP** for the Twitter-RoBERTa-2022 model
+- **Meta AI** for the RoBERTa-base pre-trained model
 - **Kaggle** for providing free GPU compute resources
 - **Prof. Valerio Basile** for theoretical guidance on Perspectivism
 - **Prof. Sara Sprugnoli** for insights on Event Representation and POS analysis
